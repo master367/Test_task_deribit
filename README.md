@@ -35,12 +35,14 @@ RESTful API сервис для мониторинга цен криптовал
 
 ```plaintext
 ├── app/
-│   ├── main.py              # Эндпоинты и инициализация FastAPI
-│   ├── tasks.py             # Задачи Celery (сбор цен)
-│   ├── deribit_client.py    # Клиент для работы с Deribit API
-│   ├── repository.py        # Слой работы с базой данных
-│   ├── models.py            # Модели SQLAlchemy
-│   └── config.py            # Настройки проекта (Pydantic)
+│   ├── __init__.py
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── repository.py
+│   ├── deribit_client.py
+│   └── tasks.py
 ├── tests/
 │   ├── __init__.py
 │   ├── test_api.py

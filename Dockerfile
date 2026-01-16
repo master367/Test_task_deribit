@@ -2,27 +2,25 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Устанавливаем системные зависимости и сертификаты одним слоем
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements
+    ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/* # Копируем зависимости
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Создаем пользователя заранее
+RUN useradd -m -u 1000 appuser
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# Копируем код и сразу назначаем владельца appuser
+COPY --chown=appuser:appuser . .
+
+# Переключаемся на пользователя
 USER appuser
 
-# Expose port
 EXPOSE 8000
 
-# Default command (can be overridden in docker-compose)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

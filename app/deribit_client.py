@@ -1,61 +1,30 @@
 import aiohttp
 import logging
-from typing import Optional
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-
 class DeribitClient:
-    """Client for interacting with Deribit API"""
+    def __init__(self):
+        self.base_url = "https://test.deribit.com/api/v2/public/get_index_price"
+        # Добавляем заголовки, чтобы имитировать браузер
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
 
-    def __init__(self, api_url: str = settings.deribit_api_url):
-        self.api_url = api_url
-        self.session: Optional[aiohttp.ClientSession] = None
-
-    async def __aenter__(self):
-        """Context manager entry - create session"""
-        self.session = aiohttp.ClientSession()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - close session"""
-        if self.session:
-            await self.session.close()
-
-    async def get_index_price(self, ticker: str) -> Optional[float]:
-        """
-        Get current index price for a ticker from Deribit
-
-        Args:
-            ticker: Currency ticker (e.g., 'btc_usd', 'eth_usd')
-
-        Returns:
-            Current index price or None if request fails
-        """
-        if not self.session:
-            raise RuntimeError("Client session not initialized. Use 'async with' context manager.")
-
-        # Convert ticker format: btc_usd -> BTC
-        currency = ticker.split('_')[0].upper()
-
-        endpoint = f"{self.api_url}/public/get_index_price"
-        params = {"index_name": f"{currency.lower()}_usd"}
-
+    async def get_index_price(self, ticker: str):
+        params = {"index_name": ticker}
         try:
-            async with self.session.get(endpoint, params=params) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get("result"):
-                        price = data["result"].get("index_price")
-                        logger.info(f"Retrieved {ticker} price: {price}")
-                        return price
+            # Устанавливаем таймаут, чтобы запрос не висел вечно
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(headers=self.headers, timeout=timeout) as session:
+                async with session.get(self.base_url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data.get("result", {}).get("index_price")
                     else:
-                        logger.error(f"No result in response for {ticker}")
-                else:
-                    logger.error(f"Failed to get price for {ticker}: status {response.status}")
-
+                        error_text = await response.text()
+                        logger.error(f"Error from Deribit: {response.status} - {error_text}")
+                        return None
         except Exception as e:
-            logger.error(f"Error fetching price for {ticker}: {str(e)}")
-
-        return None
+            logger.error(f"Connection error to Deribit for {ticker}: {e}")
+            return None

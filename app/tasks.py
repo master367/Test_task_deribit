@@ -25,7 +25,7 @@ celery_app.conf.update(
     beat_schedule={
         'fetch-prices-every-minute': {
             'task': 'app.tasks.fetch_and_save_prices',
-            'schedule': 60.0,  # Every 60 seconds
+            'schedule': 60.0,  # Запуск каждую минуту
         },
     },
 )
@@ -33,25 +33,20 @@ celery_app.conf.update(
 
 async def fetch_price_for_ticker(ticker: str) -> tuple[str, float, int]:
     """
-    Fetch price for a single ticker
-
-    Args:
-        ticker: Currency ticker
-
-    Returns:
-        Tuple of (ticker, price, timestamp)
+    Получение цены для одного тикера
     """
-    async with DeribitClient() as client:
-        price = await client.get_index_price(ticker)
-        timestamp = int(time.time())
-        return ticker, price, timestamp
+    # Создаем объект клиента без использования 'async with'
+    client = DeribitClient()
+    # Вызываем метод напрямую
+    price = await client.get_index_price(ticker)
+    timestamp = int(time.time())
+    return ticker, price, timestamp
 
 
 @celery_app.task(name='app.tasks.fetch_and_save_prices')
 def fetch_and_save_prices():
     """
-    Celery task to fetch prices from Deribit and save to database
-    Runs every minute for all configured tickers
+    Задача Celery для сбора цен и сохранения в БД
     """
     logger.info("Starting price fetch task")
 
@@ -61,7 +56,7 @@ def fetch_and_save_prices():
     try:
         for ticker in settings.tickers:
             try:
-                # Run async function in sync context
+                # Запуск асинхронной функции в синхронном контексте
                 ticker_name, price, timestamp = asyncio.run(fetch_price_for_ticker(ticker))
 
                 if price is not None:
